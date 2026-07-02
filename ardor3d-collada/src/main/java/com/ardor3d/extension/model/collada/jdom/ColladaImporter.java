@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2024 Bird Dog Games, Inc.
+ * Copyright (c) 2008-2026 Bird Dog Games, Inc.
  *
  * This file is part of Ardor3D.
  *
@@ -56,6 +56,7 @@ public class ColladaImporter {
   private ResourceLocator _modelLocator;
   private boolean _compressTextures = false;
   private boolean _optimizeMeshes = false;
+  private boolean _orthonormalizeTransforms = false;
   private final EnumSet<MatchCondition> _optimizeSettings =
       EnumSet.of(MatchCondition.UVs, MatchCondition.Normal, MatchCondition.Color);
   private Map<String, Joint> _externalJointMapping;
@@ -128,6 +129,24 @@ public class ColladaImporter {
 
   public void setOptimizeMeshes(final boolean optimizeMeshes) { _optimizeMeshes = optimizeMeshes; }
 
+  public boolean isOrthonormalizeTransforms() { return _orthonormalizeTransforms; }
+
+  /**
+   * @param orthonormalizeTransforms
+   *          if true, the rotational (upper-left 3x3) part of every imported node and animation
+   *          channel transform is orthonormalized (Gram-Schmidt) as it is baked. This cleans up the
+   *          rounding error some exporters (e.g. Autodesk FBX-to-Collada, OpenCollada) bake into
+   *          {@code <matrix>} transforms, which otherwise leaves Transforms reporting non-rotational
+   *          matrices and degrades rotation extraction (notably the warning flood on skeletal
+   *          import). Off by default: enabling it discards any scale or shear carried in those
+   *          matrices, so only turn it on when your source encodes pure rotation plus translation.
+   * @return this importer, for chaining
+   */
+  public ColladaImporter setOrthonormalizeTransforms(final boolean orthonormalizeTransforms) {
+    _orthonormalizeTransforms = orthonormalizeTransforms;
+    return this;
+  }
+
   public Set<MatchCondition> getOptimizeSettings() { return Set.copyOf(_optimizeSettings); }
 
   public void setOptimizeSettings(final MatchCondition... optimizeSettings) {
@@ -180,9 +199,9 @@ public class ColladaImporter {
     final ColladaMeshUtils colladaMeshUtils =
         new ColladaMeshUtils(dataCache, colladaDOMUtil, colladaMaterialUtils, _optimizeMeshes, _optimizeSettings);
     final ColladaAnimUtils colladaAnimUtils =
-        new ColladaAnimUtils(colladaStorage, dataCache, colladaDOMUtil, colladaMeshUtils);
+        new ColladaAnimUtils(this, colladaStorage, dataCache, colladaDOMUtil, colladaMeshUtils);
     final ColladaNodeUtils colladaNodeUtils =
-        new ColladaNodeUtils(dataCache, colladaDOMUtil, colladaMaterialUtils, colladaMeshUtils, colladaAnimUtils);
+        new ColladaNodeUtils(this, dataCache, colladaDOMUtil, colladaMaterialUtils, colladaMeshUtils, colladaAnimUtils);
 
     try {
       // Pull in the DOM tree of the Collada resource.
@@ -266,6 +285,16 @@ public class ColladaImporter {
           // Just kill what's usually done here...
         }
       }, jdomFac);
+
+      // Harden against XXE / external-entity / billion-laughs attacks in untrusted .dae files.
+      // COLLADA is an XSD-schema format and never legitimately uses a DOCTYPE, so disallowing
+      // DOCTYPE outright is safe and is the strongest single mitigation; the remaining features are
+      // defense-in-depth for parsers that do not honor disallow-doctype-decl.
+      builder.setExpandEntities(false);
+      builder.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+      builder.setFeature("http://xml.org/sax/features/external-general-entities", false);
+      builder.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+      builder.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
 
       return builder.build(resource.openStream()).getRootElement();
     } catch (final Exception e) {

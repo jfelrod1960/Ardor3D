@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2024 Bird Dog Games, Inc.
+ * Copyright (c) 2008-2026 Bird Dog Games, Inc.
  *
  * This file is part of Ardor3D.
  *
@@ -1231,8 +1231,10 @@ public class BinaryOutputCapsule implements OutputCapsule {
     write(_forceDirectNioBuffers || source.isDirect());
 
     final byte[] array;
+    final int offset;
     if (source.hasArray()) {
       array = source.array();
+      offset = source.arrayOffset();
     } else {
       // duplicate buffer to allow modification of limit/position without changing original.
       final ByteBuffer value = source.duplicate();
@@ -1241,10 +1243,11 @@ public class BinaryOutputCapsule implements OutputCapsule {
       array = new byte[length];
       value.rewind();
       value.get(array);
+      offset = 0;
     }
 
-    // write to stream
-    _baos.write(array);
+    // write to stream - exactly `length` bytes, not the whole backing array
+    _baos.write(array, offset, length);
   }
 
   @Override
@@ -1261,15 +1264,15 @@ public class BinaryOutputCapsule implements OutputCapsule {
 
   @Override
   public void write(final Enum<?>[] value, final String name) throws IOException {
-    if (value == null) {
-      write(NULL_OBJECT);
-    } else {
-      final String[] toWrite = new String[value.length];
+    // route both cases through the aliased String[] writer so a null array is handled like any other
+    String[] toWrite = null;
+    if (value != null) {
+      toWrite = new String[value.length];
       int i = 0;
       for (final Enum<?> val : value) {
         toWrite[i++] = val.name();
       }
-      write(toWrite, name, null);
     }
+    write(toWrite, name, null);
   }
 }

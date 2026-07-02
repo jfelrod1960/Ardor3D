@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2024 Bird Dog Games, Inc.
+ * Copyright (c) 2008-2026 Bird Dog Games, Inc.
  *
  * This file is part of Ardor3D.
  *
@@ -11,7 +11,6 @@
 package com.ardor3d.extension.animation.skeletal.clip;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,7 +26,7 @@ import com.ardor3d.util.export.OutputCapsule;
 public class TriggerChannel extends AbstractAnimationChannel {
 
   /** Our key samples. */
-  protected final String[] _keys;
+  protected String[] _keys;
 
   /**
    * Construct a new TriggerChannel.
@@ -79,7 +78,7 @@ public class TriggerChannel extends AbstractAnimationChannel {
     final float[] times = new float[samples];
     final String[] keys = new String[samples];
 
-    for (int i = 0; i <= samples; i++) {
+    for (int i = 0; i < samples; i++) {
       times[i] = _times[i + startSample];
       keys[i] = _keys[i + startSample];
     }
@@ -142,14 +141,7 @@ public class TriggerChannel extends AbstractAnimationChannel {
   @Override
   public void read(final InputCapsule capsule) throws IOException {
     super.read(capsule);
-    final String[] keys = capsule.readStringArray("keys", null);
-    try {
-      final Field field1 = TriggerChannel.class.getDeclaredField("_keys");
-      field1.setAccessible(true);
-      field1.set(this, keys);
-    } catch (final Exception e) {
-      e.printStackTrace();
-    }
+    _keys = capsule.readStringArray("keys", null);
   }
 
   public static TriggerChannel initSavable() {

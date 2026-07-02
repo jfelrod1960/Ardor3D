@@ -12,7 +12,7 @@ version = "1.7.0"
 
 val collectJarsDir = layout.buildDirectory.dir("collected-jars")
 
-extra["lwjglVersion"] = "3.3.3"
+extra["lwjglVersion"] = "3.4.1"
 extra["lwjglNatives"] = when {
     OperatingSystem.current().isWindows -> "natives-windows"
     OperatingSystem.current().isLinux -> "natives-linux"
@@ -60,9 +60,11 @@ subprojects {
         from(sourceSets.main.get().allSource)
     }
 
-    artifacts {
-        add("archives", tasks["jar"])
-        add("archives", tasks["packageSources"])
+    // 'jar' is already wired into 'assemble'; attach the sources jar directly rather than
+    // via the legacy 'archives' configuration, which is deprecated for artifact declaration
+    // and will fail in Gradle 10.
+    tasks.named("assemble") {
+        dependsOn("packageSources")
     }
 
     repositories {

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2024 Bird Dog Games, Inc.
+ * Copyright (c) 2008-2026 Bird Dog Games, Inc.
  *
  * This file is part of Ardor3D.
  *
@@ -11,10 +11,10 @@
 package com.ardor3d.extension.animation.skeletal.clip;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.ardor3d.annotation.SavableFactory;
 import com.ardor3d.math.util.MathUtils;
 import com.ardor3d.util.export.InputCapsule;
 import com.ardor3d.util.export.OutputCapsule;
@@ -24,10 +24,11 @@ import com.ardor3d.util.export.OutputCapsule;
  * between key frames. Potential uses for this channel include extracting and using forward motion
  * from walk animations, animating colors or texture coordinates, etc.
  */
+@SavableFactory(factoryMethod = "initSavable")
 public class InterpolatedFloatChannel extends AbstractAnimationChannel {
 
   /** Our key samples. */
-  protected final float[] _values;
+  protected float[] _values;
 
   /**
    * Construct a new InterpolatedFloatChannel.
@@ -75,7 +76,7 @@ public class InterpolatedFloatChannel extends AbstractAnimationChannel {
     final float[] times = new float[samples];
     final float[] values = new float[samples];
 
-    for (int i = 0; i <= samples; i++) {
+    for (int i = 0; i < samples; i++) {
       times[i] = _times[i + startSample];
       values[i] = _values[i + startSample];
     }
@@ -143,14 +144,7 @@ public class InterpolatedFloatChannel extends AbstractAnimationChannel {
   @Override
   public void read(final InputCapsule capsule) throws IOException {
     super.read(capsule);
-    final float[] values = capsule.readFloatArray("values", null);
-    try {
-      final Field field1 = InterpolatedFloatChannel.class.getDeclaredField("_values");
-      field1.setAccessible(true);
-      field1.set(this, values);
-    } catch (final Exception e) {
-      e.printStackTrace();
-    }
+    _values = capsule.readFloatArray("values", null);
   }
 
   public static InterpolatedFloatChannel initSavable() {
